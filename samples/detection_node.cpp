@@ -53,12 +53,26 @@ void OnPointCloud(const sensor_msgs::PointCloud2ConstPtr& ros_pc2) {
     if (use_roi_filter_) {
         roi::applyROIFilter<PointI>(params_roi_, cloud);
     }
+    PointICloudPtr cloud_without_robot(new PointICloud);
+    int removed_points = 0;
+    for(int i = 0; i < cloud->points.size(); ++i) 
+    {
+            if(!(cloud->points[i].x < 0 && cloud->points[i].x > -1.5 && abs(cloud->points[i].y) < 0.8)) 
+            {
+                    cloud_without_robot->points.push_back(cloud->points[i]);
+            }
+            else{
+                    removed_points++;
+            }
+    }
+
+    ROS_INFO_STREAM("Removed " << removed_points << " points");
 
     std::vector<PointICloudPtr> cloud_clusters;
     PointICloudPtr cloud_ground(new PointICloud);
     PointICloudPtr cloud_nonground(new PointICloud);
 
-    ground_remover_->segment(*cloud, cloud_clusters);
+    ground_remover_->segment(*cloud_without_robot, cloud_clusters);
     *cloud_ground = *cloud_clusters[0];
     *cloud_nonground = *cloud_clusters[1];
 
@@ -80,8 +94,7 @@ void OnPointCloud(const sensor_msgs::PointCloud2ConstPtr& ros_pc2) {
             objects_pub_, header, autosense::common::MAGENTA.rgbA, objects);
     }
 
-    ROS_INFO_STREAM("Cloud processed. Took " << clock.takeRealTime()
-                                             << "ms.\n");
+    ROS_INFO_STREAM("Cloud processed. Took " << clock.takeRealTime() << "ms.\n");
 }
 
 int main(int argc, char **argv) {
